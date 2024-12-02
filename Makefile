@@ -89,4 +89,4 @@ shellnginx:
 	@docker container exec -ti visitationbook_nginx sh
 
 generatesslnginx:
-	@certbot --nginx -d backend.visitationbook.com -d account.visitationbook.com -d pgadmin.visitationbook.com
+	@certbot --nginx -d admin.visitationbook.com -d visitationbook.com

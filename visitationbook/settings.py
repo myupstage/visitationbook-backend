@@ -18,7 +18,9 @@ from drf_yasg import openapi
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-BASE_URL = os.environ.get('BASE_URL', 'http://34.171.253.86')
+BASE_URL = os.environ.get('BASE_URL', 'https://admin.visitationbook.com')
+API_URL = os.environ.get('API_URL', 'https://admin.visitationbook.com/api/')
+FRONT_URL = os.environ.get('FRONT_URL', 'https://visitationbook.com/')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -30,8 +32,6 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 DEBUG = int(os.environ.get("DEBUG", 1))
 
 ALLOWED_HOSTS = ["*"]
-
-API_URL=os.environ.get('API_URL')
 
 SITE_ID = 1
 

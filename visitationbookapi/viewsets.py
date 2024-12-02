@@ -365,7 +365,7 @@ class EmailViewSet(viewsets.ViewSet):
             
             logo_url = f'{settings.BASE_URL}{staticfiles_storage.url("images/logo.png")}'
             
-            url = "http://34.171.253.86:3000/admin/visitation-books/send-guest?token={}".format(book_purchase.id)
+            url = "{}admin/visitation-books/send-guest?token={}".format(settings.FRONT_URL, book_purchase.id)
             subject = f"Thank you for attending note for {book_purchase.deceased_name}" if book_purchase.deceased_name != None else "Thank you for attending note"
                 
             context = {

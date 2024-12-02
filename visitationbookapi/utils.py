@@ -253,7 +253,7 @@ def send_welcome_email(user):
     # Contexte pour le template
     context = {
         'full_name': user.full_name,
-        'login_url': "http://34.171.253.86:3000/",
+        'login_url': settings.FRONT_URL,
         'logo_url': logo_url
     }
 

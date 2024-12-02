@@ -33,7 +33,7 @@ from dj_rest_auth.registration.views import (
 
 schema_view = get_schema_view(
     settings.api_info,
-    # url=settings.API_URL, 
+    url=settings.API_URL, 
     public=True,
     permission_classes=(permissions.AllowAny,),
 )
