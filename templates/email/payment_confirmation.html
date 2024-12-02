@@ -1,0 +1,130 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Confirmation - Visitation Book</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .logo {
+            max-width: 150px;
+            height: auto;
+        }
+        h1 {
+            font-size: 24px;
+            color: #333;
+            margin-top: 20px;
+        }
+        .content {
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        p {
+            margin: 10px 0;
+            color: #666;
+        }
+        .details {
+            margin-top: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        .details-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .details-label {
+            font-weight: bold;
+            color: #333;
+        }
+        .book-cover {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .book-cover img {
+            max-width: 200px;
+            height: auto;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="{{ logo_url }}" alt="Visitation Book Logo" class="logo">
+            <h1>Payment Confirmation</h1>
+        </div>
+        
+        <div class="content">
+            <p>Dear {{user.first_name}},</p>
+            <p>Thank you for your recent purchase. We're pleased to confirm that your payment has been successfully processed.</p>
+
+            <div class="book-cover">
+                <img src="{{ book_cover_url }}" alt="Book Cover: {{book_title}}">
+            </div>
+            
+            <div class="details">
+                <div class="details-row">
+                    <span class="details-label">Book Title:</span>
+                    <span>{{book_title}}</span>
+                </div>
+                <div class="details-row">
+                    <span class="details-label">Amount Paid:</span>
+                    <span>${{amount}}</span>
+                </div>
+                <div class="details-row">
+                    <span class="details-label">Payment Date:</span>
+                    <span>{{purchase_date}}</span>
+                </div>
+                <div class="details-row">
+                    <span class="details-label">Transaction ID:</span>
+                    <span>{{transaction_id}}</span>
+                </div>
+                <div class="details-row">
+                    <span class="details-label">Status:</span>
+                    <span>{{payment_status}}</span>
+                </div>
+            </div>
+            
+            <p>We hope you enjoy your purchase. If you have any questions or concerns, please don't hesitate to contact our customer support team.</p>
+            
+            <p>Best regards,<br>The Visitation Book Team</p>
+        </div>
+        
+        <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+            <p>&copy; 2024 Visitation Book. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

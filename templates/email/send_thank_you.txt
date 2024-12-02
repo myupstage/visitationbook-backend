@@ -1,0 +1,16 @@
+{{ subject }}
+
+{{ message }}
+
+{{ url }}
+
+{% if custom_field_25_value %}
+Associate link: {{ custom_field_25_value }}
+{% endif %}
+
+{% if custom_field_50_value %}
+Associate link: {{ custom_field_50_value }}
+{% endif %}
+
+---
+This message was sent to you from our platform. For any inquiries, please contact support.

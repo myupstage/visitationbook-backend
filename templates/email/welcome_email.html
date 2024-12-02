@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Visitation Book</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            max-width: 200px;
+            height: auto;
+        }
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        p {
+            margin-bottom: 15px;
+            color: #555;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #007bff;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="{{ logo_url }}" alt="Visitation Book" class="logo">
+        </div>
+        
+        <h1>Welcome to Visitation Book, {{ full_name }}!</h1>
+        
+        <p>Thank you for joining our community. We're excited to have you on board!</p>
+        
+        <p>With Visitation Book, you can:</p>
+        <ul>
+            <li>Create and manage visitation books</li>
+            <li>Share memories and condolences</li>
+            <li>Connect with friends and family during difficult times</li>
+        </ul>
+        
+        <p>To get started, click the button below to log in to your account:</p>
+        
+        <p style="text-align: center;">
+            <a href="{{ login_url }}" class="cta-button">Log In to Your Account</a>
+        </p>
+        
+        <p>If you have any questions or need assistance, don't hesitate to contact our support team.</p>
+        
+        <p>We hope you find comfort and support through our platform.</p>
+        
+        <p>Best regards,<br>The Visitation Book Team</p>
+        
+        <div class="footer">
+            <p>This is an automated message, please do not reply.</p>
+            <p>&copy; 2024 Visitation Book. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+Payment Confirmation
+
+Dear {{ user.first_name }},
+
+We have received your payment for the following book purchase:
+
+Book Title: {{ book_title }}
+Amount Paid: ${{ amount }}
+Payment Date: {{ purchase_date }}
+Status: {{ payment_status }}
+
+Book Cover : {{ book_cover_url }}
+
+Thank you for your purchase!
+
+---
+This message was sent to you from our platform. For any inquiries, please contact support.
+

@@ -1,0 +1,23 @@
+Welcome to Visitation Book, {{ full_name }}!
+
+Thank you for joining our community. We're excited to have you on board!
+
+With Visitation Book, you can:
+- Create and manage visitation books
+- Share memories and condolences
+- Connect with friends and family during difficult times
+
+To get started, please visit the following URL to log in to your account:
+{{ login_url }}
+
+If you have any questions or need assistance, don't hesitate to contact our support team.
+
+We hope you find comfort and support through our platform.
+
+Best regards,
+The Visitation Book Team
+
+---
+
+This is an automated message, please do not reply.
+© 2024 Visitation Book. All rights reserved.
