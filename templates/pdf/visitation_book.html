@@ -1,0 +1,276 @@
+{% load static %}
+{% load static pdf_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: letter;
+            margin: 0.5in 0.5in 0.5in 0.5in;
+        }
+
+        @page :first {
+            background-image: url('{{ background_image }}');
+            background-size: cover;
+            background-position: center;
+            margin: 0.5in 0.5in 0.5in 0.5in;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .page {
+            page-break-after: always;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* First page styles */
+        .cover {
+            text-align: center;
+            position: relative;
+            height: 100vh;
+        }
+
+        .deceased-info {
+            padding-top: 1in;
+            position: relative;
+            z-index: 1;
+        }
+
+        .deceased-name {
+            font-size: 24pt;
+            margin-bottom: 0.3in;
+            text-align: center;
+            color: black;
+        }
+
+        .deceased-image {
+            max-width: 6in;
+            max-height: 6in;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .dates {
+            font-size: 14pt;
+            text-align: center;
+            margin-top: 0.1in;
+            color: black;
+        }
+
+        .date {
+            margin: 0.1in 0;
+        }
+
+        /* Visitors pages styles */
+        .visitors-page {
+            padding: 0.5in;
+            min-height: 100vh;
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(94deg, #E8E5E0 2.03%, #DDD 24.44%, #E8E0E0 44.94%, #EBE6E3 66.39%, #E5DBDC 97.39%);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            margin: 0;
+        }
+
+        .page-title {
+            text-align: center;
+            font-size: 18pt;
+            margin-bottom: 0.5in;
+            color: #54504F;
+            font-weight: 500;
+        }
+
+        .visitors-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3in;
+            max-width: 8in;
+            margin: 0.5in auto;
+            padding: 0.25in 0;
+            flex-grow: 1;
+        }
+
+        .visitor-card {
+            display: flex;
+            align-items: center;
+            padding: 0.2in;
+            margin: 0.1in 0;
+            border-radius: 0.2in;
+            background: linear-gradient(266deg, #EEDFDF 4.28%, rgba(84, 79, 79, 0.30) 95.72%);
+        }
+
+        .visitor-card:nth-child(odd) {
+            flex-direction: row;
+        }
+
+        .visitor-card:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+
+        .visitor-image {
+            width: 1.2in;
+            height: 1.2in;
+            border-radius: 50%;
+            margin: 0 0.3in;
+            object-fit: cover;
+            background-color: #D9D9D9;
+        }
+
+        .visitor-info {
+            flex: 2;
+        }
+
+        .visitor-info > div {
+            margin: 0.05in 0;
+        }
+
+        .visitor-name {
+            font-weight: 500;
+            font-size: 12pt;
+            color: #54504F;
+        }
+
+        .visitor-address,
+        .visitor-email {
+            font-size: 10pt;
+            color: rgba(84, 79, 79, 0.8);
+        }
+
+        .visitor-notes {
+            font-style: italic;
+            color: rgba(84, 79, 79, 0.9);
+            font-size: 10pt;
+            margin-top: 0.1in;
+        }
+
+        /* Alternate text alignment for even and odd cards */
+        .visitor-card:nth-child(even) .visitor-name,
+        .visitor-card:nth-child(even) .visitor-address,
+        .visitor-card:nth-child(even) .visitor-email,
+        .visitor-card:nth-child(even) .visitor-notes {
+            text-align: right;
+        }
+
+        .visitor-card:nth-child(odd) .visitor-name,
+        .visitor-card:nth-child(odd) .visitor-address,
+        .visitor-card:nth-child(odd) .visitor-email,
+        .visitor-card:nth-child(odd) .visitor-notes {
+            text-align: left;
+        }
+
+        /* Footer page styles */
+        .footer-page {
+            min-height: 100vh;
+            position: relative;
+            background: #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .footer-content {
+            width: 100%;
+            max-width: 8in;
+            padding: 1in;
+            text-align: center;
+        }
+
+        .thank-you-message {
+            font-size: 11pt;
+            line-height: 1.6;
+            color: #333333;
+            margin-bottom: 1in;
+            text-align: justify;
+        }
+
+        .footer-logo {
+            width: 2in;
+            height: auto;
+            margin: 0.5in auto;
+            display: block;
+        }
+
+        .footer-text {
+            font-size: 12pt;
+            color: #333333;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- First page with deceased info -->
+    <div class="page cover">
+        <div class="deceased-info">
+            <h1 class="deceased-name">{{ deceased_name }}</h1>
+            {% if deceased_image %}
+            <img class="deceased-image" src="{{ deceased_image }}" alt="{{ deceased_name }}">
+            {% endif %}
+            <div class="dates">
+                {% if date_of_birth %}
+                <p class="date">Born: {{ date_of_birth }}</p>
+                {% endif %}
+                {% if date_of_death %}
+                <p class="date">Passed: {{ date_of_death }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Visitor pages -->
+    {% for page_guests in visitor_pages %}
+        <div class="page visitors-page">
+            <h1 class="page-title">Visitors</h1>
+            <div class="visitors-container">
+                {% for guest in page_guests %}
+                    <div class="visitor-card">
+                        {% if guest.image %}
+                        <div class="visitor-image-container">
+                            <img class="visitor-image" src="{{ guest.image }}" alt="Guest photo">
+                        </div>
+                        {% endif %}
+                        <div class="visitor-info">
+                            {% if guest.name %}
+                            <div class="visitor-name">{{ guest.name }}</div>
+                            {% endif %}
+                            {% if guest.address %}
+                            <div class="visitor-address">{{ guest.address }}</div>
+                            {% endif %}
+                            {% if guest.email %}
+                            <div class="visitor-email">{{ guest.email }}</div>
+                            {% endif %}
+                            {% if guest.notes %}
+                            <div class="visitor-notes">{{ guest.notes }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+
+    <!-- Footer page -->
+    <div class="page footer-page">
+        <div class="footer-content">
+            <div class="thank-you-message">
+                During this time of profound sorrow, we want you to know that our thoughts and hearts are with you. Losing someone so dear is never easy, and words often fall short in expressing the depth of our sympathy.
+                <br><br>
+                Please accept our heartfelt gratitude for allowing us to be a part of honoring {{ deceased_name }}'s memory. It has been a privilege to support you during this time, and we hope that our service provided some measure of comfort and peace.
+                <br><br>
+                May you find strength in the cherished memories you hold and in the love that surrounds you.
+                <br><br>
+                With deepest sympathy,
+            </div>
+            <img class="footer-logo" src="{{ logo }}" alt="Logo">
+            <p class="footer-text">www.visitationbook.com</p>
+        </div>
+    </div>
+</body>
+</html>

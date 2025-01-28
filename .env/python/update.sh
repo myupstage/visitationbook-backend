@@ -15,6 +15,12 @@ python manage.py makemigrations
 echo "Migrate data ..."
 python manage.py migrate
 
+echo "Create Stripe customers ..."
+python manage.py create_stripe_customers
+
+echo "Verify Stripe prices ..."
+python manage.py verify_stripe_prices
+
 # python manage.py createsuperuser
 
 # python manage.py shell

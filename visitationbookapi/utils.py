@@ -1,3 +1,7 @@
+import os
+import re
+from io import BytesIO
+from functools import wraps
 from visitationbook import settings
 from visitationbookapi.models import *
 from rest_framework.views import exception_handler
@@ -7,241 +11,103 @@ from django.core.mail import EmailMultiAlternatives
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.db.models import QuerySet
 from django.template.loader import render_to_string
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
-from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak
-from reportlab.platypus import Image as ReportLabImage
-from PIL import Image as PILImage, ImageDraw
-from functools import wraps
-from io import BytesIO
-from math import ceil
-import os
-
-
-def add_background_to_canvas(canvas, doc, background_image_path):
-    canvas.saveState()
-    # Calculer les dimensions pour couvrir toute la page
-    page_width, page_height = letter
-    canvas.drawImage(background_image_path, 0, 0, width=page_width,
-                     height=page_height, preserveAspectRatio=True, mask='auto')
-    canvas.restoreState()
-
-
-def first_page(canvas, doc):
-    background_image_path = getattr(doc, '_background_image_path', None)
-    if background_image_path:
-        add_background_to_canvas(canvas, doc, background_image_path)
-    # Vous pouvez ajouter ici d'autres éléments spécifiques à la première page
-
-
-def later_pages(canvas, doc):
-    # Traitez ici les pages suivantes si nécessaire
-    pass
-
-
-def create_circular_image(image_path, size=(1*inch, 1*inch)):
-    img = PILImage.open(image_path)
-    img = img.convert("RGBA")
-    img = img.resize((int(size[0]), int(size[1])), PILImage.LANCZOS)
-
-    mask = PILImage.new('L', img.size, 0)
-    draw = ImageDraw.Draw(mask)
-    draw.ellipse((0, 0) + img.size, fill=255)
-
-    output = PILImage.new('RGBA', img.size, (255, 255, 255, 0))
-    output.paste(img, (0, 0), mask)
-
-    img_buffer = BytesIO()
-    output.save(img_buffer, format='PNG')
-    img_buffer.seek(0)
-
-    return img_buffer.getvalue()
+import tempfile
+from weasyprint import HTML
 
 
 def generate_pdf(book_purchase):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter,
-                            topMargin=0.5*inch, bottomMargin=0.5*inch)
-
-    # Définir le chemin de l'image de fond
-    doc._background_image_path = book_purchase.custom_cover.path if book_purchase.custom_cover else book_purchase.book.cover.path
-
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='Center', alignment=TA_CENTER))
-    styles.add(ParagraphStyle(name='CustomTitle',
-                              parent=styles['Heading1'],
-                              alignment=TA_CENTER,
-                              fontSize=24,
-                              spaceAfter=0.3*inch))
-    styles.add(ParagraphStyle(name='Date',
-                              parent=styles['Normal'],
-                              alignment=TA_CENTER,
-                              fontSize=14,
-                              spaceAfter=0.1*inch))
-    styles.add(ParagraphStyle(name='PageTitle',
-                              parent=styles['Heading2'],
-                              alignment=TA_CENTER,
-                              fontSize=18,
-                              spaceAfter=0.5*inch))
-    story = []
-
-    # First page
-    if book_purchase.deceased_name:
-        story.append(Spacer(1, 1*inch))  # Espace en haut de la page
-        story.append(Paragraph(f"{book_purchase.deceased_name}", styles['CustomTitle']))
-        story.append(Spacer(1, 0.5*inch))
-
-    # Add deceased image
-    if book_purchase.deceased_image:
-        story.append(Image(book_purchase.deceased_image.path,
-                     width=6*inch, height=6*inch, kind='proportional'))
-    else:
-        story.append(Spacer(1, 6*inch))  # Placeholder if no image
-
-    story.append(Spacer(1, 0.5*inch))
-    if book_purchase.date_of_birth:
-        story.append(Paragraph(
-            f"Born: {book_purchase.date_of_birth.strftime('%B %d, %Y')}", styles['Date']))
-    if book_purchase.date_of_death:
-        story.append(Paragraph(
-            f"Passed: {book_purchase.date_of_death.strftime('%B %d, %Y')}", styles['Date']))
-
-    story.append(PageBreak())
-
-    # Guest notes pages
-    guest_infos = book_purchase.guest_infos.all()
-    cards_per_page = 4
-    total_pages = ceil(len(guest_infos) / cards_per_page)
-
-    for page in range(total_pages):
-        # Ajouter le titre "Visitors" en haut de chaque page
-        story.append(Paragraph("Visitors", styles['PageTitle']))
-        
-        start = page * cards_per_page
-        end = start + cards_per_page
-        page_guests = guest_infos[start:end]
-        
-        # Calculer la largeur disponible sur la page
-        page_width = letter[0]
-        margin = 1 * inch  # 1 pouce de marge de chaque côté
-        available_width = page_width - (2 * margin)
-        
-        # Calculer l'espacement vertical entre les cards
-        page_height = letter[1]
-        total_vertical_space = page_height - (2 * margin) - 1*inch  # Soustraire l'espace pour le titre
-        space_between_cards = total_vertical_space / (cards_per_page + 1)  # +1 pour avoir un espace uniforme
-
-        for i, guest in enumerate(page_guests):
-            # Determine image position (left for even, right for odd)
-            image_on_left = i % 2 == 0
-
-            # Create a card-like structure for each guest
-            card_content = []
-
-            # Guest picture (if allowed and exists)
-            guest_image = None
-            if book_purchase.allow_picture and guest.guest_picture:
-                img_data = create_circular_image(guest.guest_picture.path)
-                guest_image = ReportLabImage(BytesIO(img_data), width=1.5*inch, height=1.5*inch)
-
-            # Guest information
-            guest_info = []
-            if book_purchase.allow_name and guest.guest_name:
-                guest_info.append(
-                    Paragraph(f"<b>{guest.guest_name}</b>", styles['Normal']))
-            if book_purchase.allow_address and guest.guest_address:
-                guest_info.append(
-                    Paragraph(guest.guest_address, styles['Normal']))
-            if book_purchase.allow_email and guest.guest_email:
-                guest_info.append(
-                    Paragraph(guest.guest_email, styles['Normal']))
-
-            # Add custom fields
-            if book_purchase.allow_special_notes and guest.special_notes:
-                guest_info.append(
-                    Paragraph(f"<i>{guest.special_notes}</i>", styles['Normal']))
-            
-
-            # Combine image and info based on position
-            if image_on_left:
-                card_content = [[guest_image or '', guest_info]]
-                text_align = 'LEFT'
-            else:
-                card_content = [[guest_info, guest_image or '']]
-                text_align = 'RIGHT'
-
-            # Create a table for the card
-            image_width = available_width / 3
-            text_width = available_width * 2 / 3
-            card_table = Table(card_content, colWidths=[image_width, text_width])
-            card_table.setStyle(TableStyle([
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('ALIGN', (0, 0), (0, 0), 'CENTER'),  # Center the image
-                ('ALIGN', (1, 0), (1, 0), text_align),
-                ('TOPPADDING', (0, 0), (-1, -1), 5),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-                ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-            ]))
-
-            # Add vertical spacing before card
-            story.append(Spacer(1, space_between_cards))
-
-            # Add left margin spacer, card table, and right margin spacer
-            story.append(
-                Table([[Spacer(margin, 1), card_table, Spacer(margin, 1)]],
-                      colWidths=[margin, available_width, margin])
-            )
-
-        if page < total_pages - 1:
-            story.append(PageBreak())
-
-    # Last page (Thank you message)
-    story.append(PageBreak())
-    thank_you_message = """
-    During this time of profound sorrow, we want you to know that our thoughts and
-    hearts are with you. Losing someone so dear is never easy, and words often fall short
-    in expressing the depth of our sympathy.
-    
-    Please accept our heartfelt gratitude for allowing us to be a part of honoring Pac
-    Lee's memory. It has been a privilege to support you during this time, and we hope that
-    our service provided some measure of comfort and peace.
-    
-    May you find strength in the cherished memories you hold and in the love that
-    surrounds you.
-    
-    With deepest sympathy,
-    """
-    for line in thank_you_message.split('\n'):
-        story.append(Paragraph(line.strip(), styles['Normal']))
-
-    # Add logo
-    logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo.png')
-    story.append(Spacer(1, 0.5*inch))
+    """Génère le PDF principal du book purchase avec WeasyPrint."""
     try:
-        story.append(Image(logo_path, width=1*inch,
-                     height=1*inch, hAlign='CENTER'))
+        # Vérifier les fichiers nécessaires
+        if book_purchase.deceased_image and not os.path.exists(book_purchase.deceased_image.path):
+            raise FileNotFoundError(f"Deceased image file not found: {book_purchase.deceased_image.path}")
+
+        # Préparer les chemins des images
+        background_image = book_purchase.custom_cover.path if book_purchase.custom_cover else book_purchase.book.cover.path
+        deceased_image = book_purchase.deceased_image.path if book_purchase.deceased_image else None
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo.png')
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            # Copier les images dans le répertoire temporaire
+            import shutil
+            tmp_bg = os.path.join(tmpdirname, 'background.jpg')
+            tmp_deceased = os.path.join(tmpdirname, 'deceased.jpg') if deceased_image else None
+            tmp_logo = os.path.join(tmpdirname, 'logo.png')
+            
+            shutil.copy2(background_image, tmp_bg)
+            if deceased_image:
+                shutil.copy2(deceased_image, tmp_deceased)
+            if os.path.exists(logo_path):
+                shutil.copy2(logo_path, tmp_logo)
+
+            # Préparer les données des visiteurs
+            guest_cards = []
+            for guest in book_purchase.guest_infos.all():
+                guest_data = {
+                    'name': guest.guest_name if book_purchase.allow_name else None,
+                    'address': guest.guest_address if book_purchase.allow_address else None,
+                    'email': guest.guest_email if book_purchase.allow_email else None,
+                    'notes': guest.special_notes if book_purchase.allow_special_notes else None
+                }
+
+                if book_purchase.allow_picture and guest.guest_picture:
+                    guest_image_path = os.path.join(tmpdirname, f'guest_{guest.id}.jpg')
+                    shutil.copy2(guest.guest_picture.path, guest_image_path)
+                    guest_data['image'] = guest_image_path
+
+                guest_cards.append(guest_data)
+                
+            # Préparer les pages de visiteurs (4 visiteurs par page)
+            visitor_pages = []
+            cards_per_page = 4
+            for i in range(0, len(guest_cards), cards_per_page):
+                visitor_pages.append(guest_cards[i:i + cards_per_page])
+
+            # Contexte pour le template
+            context = {
+                'deceased_name': book_purchase.deceased_name,
+                'deceased_image': tmp_deceased,
+                'date_of_birth': book_purchase.date_of_birth.strftime('%B %d, %Y') if book_purchase.date_of_birth else None,
+                'date_of_death': book_purchase.date_of_death.strftime('%B %d, %Y') if book_purchase.date_of_death else None,
+                'background_image': tmp_bg,
+                'logo': tmp_logo,
+                'visitor_pages': visitor_pages  # Pages déjà préparées
+            }
+
+            # Générer le HTML
+            html_string = render_to_string('pdf/visitation_book.html', context)
+            html_path = os.path.join(tmpdirname, 'output.html')
+            
+            with open(html_path, 'w', encoding='utf-8') as f:
+                f.write(html_string)
+
+            try:
+                # Générer le PDF
+                pdf_buffer = BytesIO()
+                HTML(filename=html_path, base_url=tmpdirname).write_pdf(
+                    pdf_buffer,
+                    presentational_hints=True,
+                    optimize_size=('fonts', 'images')
+                )
+
+                pdf = pdf_buffer.getvalue()
+            finally:
+                if os.path.exists(html_path):
+                    os.unlink(html_path)
+                pdf_buffer.close()
+                
+            return pdf
+
     except Exception as e:
-        print(f"Erreur lors du chargement du logo : {e}")
-
-    # Add website link
-    story.append(Spacer(1, 0.25*inch))
-    story.append(Paragraph("www.visitationbook.com", styles['Center']))
-
-    doc.build(story, onFirstPage=first_page, onLaterPages=later_pages)
-    pdf = buffer.getvalue()
-    buffer.close()
-    return pdf
+        print(f"Error generating PDF: {e}")
+        raise
 
 
 def update_pdf(book_purchase):
     book_purchase.delete_existing_pdf()
     pdf = generate_pdf(book_purchase)
     book_purchase.pdf_file.save(f'book_purchase_{book_purchase.id}.pdf', ContentFile(pdf), save=True)
-
+    
 
 def send_welcome_email(user):
     logo_url = f'{settings.BASE_URL}{staticfiles_storage.url("images/logo.png")}'
@@ -301,6 +167,46 @@ def send_payment_confirmation_email(user, book_purchase):
 
     email_html_message = render_to_string('email/payment_confirmation.html', context)
     email_plaintext_message = render_to_string('email/payment_confirmation.txt', context)
+
+    try:
+        email_message = EmailMultiAlternatives(
+            subject,
+            email_plaintext_message,
+            from_email,
+            [recipient_email]
+        )
+        email_message.attach_alternative(email_html_message, "text/html")
+        email_message.send()
+    except Exception as e:
+        print(e)
+        
+        
+def send_subscription_confirmation_email(user, subscription):
+    """
+    Send a subscription confirmation email to the customer.
+    """
+    logo_url = f'{settings.BASE_URL}{staticfiles_storage.url("images/logo.png")}'
+    
+    subject = "Subscription Confirmation"
+    recipient_email = user.email
+    from_email = settings.DEFAULT_FROM_EMAIL
+
+    context = {
+        'user': user,
+        'subscription_plan': subscription.plan.name,
+        'plan_type': subscription.plan.get_plan_type_display(),
+        'book_type': subscription.plan.get_book_type_display(),
+        'start_date': subscription.start_date,
+        'end_date': subscription.end_date,
+        'transaction_id': subscription.payment_transaction.id if subscription.payment_transaction else None,
+        'amount': subscription.plan.price,
+        'max_books': subscription.plan.max_books,
+        'payment_status': "Completed",
+        'logo_url': logo_url,
+    }
+
+    email_html_message = render_to_string('email/subscription_confirmation.html', context)
+    email_plaintext_message = render_to_string('email/subscription_confirmation.txt', context)
 
     try:
         email_message = EmailMultiAlternatives(
@@ -394,3 +300,142 @@ def social_user_handler(strategy, details, backend, user=None, *args, **kwargs):
         user.save()
 
     return {'is_new': user is None, 'user': user}
+
+
+def generate_thank_you_note_pdf(book_purchase, guest_info=None):
+    """
+    Génère un PDF de note de remerciement, soit comme template soit personnalisé pour un guest
+    
+    Args:
+        book_purchase: L'instance BookPurchase
+        guest_info: Optionnel. Si fourni, génère un PDF personnalisé pour ce guest
+    """
+    try:
+        if book_purchase.deceased_image:
+            if not os.path.exists(book_purchase.deceased_image.path):
+                raise FileNotFoundError(f"Deceased image file not found: {book_purchase.deceased_image.path}")
+        
+        # Préparer le texte de la note
+        if guest_info:
+            context = {
+                'guest_name': guest_info.guest_name or 'Guest',
+                'guest_address': guest_info.guest_address or '',
+                'guest_email': guest_info.guest_email or '',
+                'deceased_name': book_purchase.deceased_name or '',
+                'book_purchaser_name': book_purchase.user.full_name or book_purchase.user.email,
+            }
+            attending_note = substitute_variables(book_purchase.attending_note, context)
+        else:
+            attending_note = book_purchase.attending_note
+
+        # Construire les URLs absolus pour les images
+        background_image = book_purchase.custom_cover.path if book_purchase.custom_cover else book_purchase.book.cover.path
+        deceased_image = book_purchase.deceased_image.path if book_purchase.deceased_image else None
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo.png')
+
+        # Contexte pour le template HTML
+        template_context = {
+            'deceased_name': book_purchase.deceased_name,
+            'date_of_birth': book_purchase.date_of_birth.strftime('%B %d, %Y') if book_purchase.date_of_birth else None,
+            'date_of_death': book_purchase.date_of_death.strftime('%B %d, %Y') if book_purchase.date_of_death else None,
+            'attending_note': attending_note,
+            'book_purchaser_name': book_purchase.user.full_name or book_purchase.user.email,
+        }
+
+        # Créer un dossier temporaire pour les assets
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            # Copier les images dans le dossier temporaire
+            tmp_bg = os.path.join(tmpdirname, 'background.jpg')
+            tmp_deceased = os.path.join(tmpdirname, 'deceased.jpg') if deceased_image else None
+            tmp_logo = os.path.join(tmpdirname, 'logo.png')
+            
+            import shutil
+            shutil.copy2(background_image, tmp_bg)
+            if deceased_image:
+                shutil.copy2(deceased_image, tmp_deceased)
+            if os.path.exists(logo_path):
+                shutil.copy2(logo_path, tmp_logo)
+            
+            # Ajouter les chemins d'images au contexte
+            template_context.update({
+                'background_image': tmp_bg,
+                'deceased_image': tmp_deceased,
+                'logo': tmp_logo
+            })
+
+            # Générer le HTML
+            html_string = render_to_string('pdf/thank_you_note.html', template_context)
+            html_path = os.path.join(tmpdirname, 'output.html')
+            
+            with open(html_path, 'w', encoding='utf-8') as f:
+                f.write(html_string)
+            try:
+                # Générer le PDF
+                pdf_buffer = BytesIO()
+                HTML(filename=html_path, base_url=tmpdirname).write_pdf(
+                    pdf_buffer,
+                    presentational_hints=True,
+                    optimize_size=('fonts', 'images'),
+                )
+                pdf = pdf_buffer.getvalue()
+            finally:
+                if os.path.exists(html_path):
+                    os.unlink(html_path)
+                pdf_buffer.close()
+                
+            return pdf
+
+    except Exception as e:
+        print(f"Error generating PDF: {e}")
+        raise
+
+
+def substitute_variables(text, context):
+    """
+    Remplace les variables dans le texte avec leur valeur correspondante du contexte
+    """
+    replacements = {
+        '[guest_name]': context.get('guest_name', 'Guest'),
+        '[guest_address]': context.get('guest_address', ''),
+        '[guest_email]': context.get('guest_email', ''),
+        '[deceased_name]': context.get('deceased_name', ''),
+        '[book_purchaser_name]': context.get('book_purchaser_name', ''),
+        '[your_name]': context.get('book_purchaser_name', '')
+    }
+    
+    for key, value in replacements.items():
+        text = text.replace(key, value)
+    
+    return text
+
+
+def send_thank_you_email(to_email, subject, context, book_purchase, guest_info):
+    """
+    Envoie un email de remerciement avec le PDF personnalisé
+    """
+    # Générer l'email HTML
+    context['logo_url'] = f'{settings.BASE_URL}{staticfiles_storage.url("images/logo.png")}'
+    context['guest_id'] = guest_info.id
+    email_html_message = render_to_string('email/send_thank_you_guest.html', context)
+    email_plaintext_message = render_to_string('email/send_thank_you_guest.txt', context)
+    
+    # Générer le PDF personnalisé pour ce guest
+    pdf_content = generate_thank_you_note_pdf(book_purchase, guest_info)
+    if guest_info:
+        guest_info.thank_you_pdf.save(f'thank_you_{guest_info.id}.pdf', ContentFile(pdf_content), save=True)
+
+    try:
+        msg = EmailMultiAlternatives(
+            subject,
+            email_plaintext_message,
+            settings.DEFAULT_FROM_EMAIL,
+            [to_email]
+        )
+        msg.attach_alternative(email_html_message, "text/html")
+        msg.attach('thank_you_note.pdf', pdf_content, 'application/pdf')
+        
+        msg.send()
+        return True
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        return False

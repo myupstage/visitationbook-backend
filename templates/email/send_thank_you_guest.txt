@@ -1,0 +1,14 @@
+Dear {guest_name},
+
+Thank you for sharing your condolences for {deceased_name}.
+
+{attending_note}
+
+https://visitationbook.com/thank-you-note?token={{ guest_id }}
+
+Sincerely,
+{book_purchaser_name}
+
+---
+This is an automated message from VisitationBook.com
+© 2024 Visitation Book. All rights reserved.

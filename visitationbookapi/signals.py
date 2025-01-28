@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.core.mail import EmailMultiAlternatives
 from django.dispatch import receiver
 from django.template.loader import render_to_string
@@ -58,7 +58,7 @@ def update_pdf_on_guest_info_change(sender, instance, created, **kwargs):
     # Mettre à jour le PDF chaque fois qu'un GuestInfo est créé ou modifié
     update_pdf(instance.book_purchase)
     
-
+            
 def create_stripe_customer(user):
     try:
         stripe_customer = stripe.Customer.create(

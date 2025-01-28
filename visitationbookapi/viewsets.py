@@ -48,7 +48,7 @@ class BookPurchaseViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
     
     def get_serializer_class(self):
-        if self.action == 'retrieve' and (not self.request.user.is_authenticated or self.get_object().user != self.request.user):
+        if self.action == 'retrieve' and not self.request.user.is_authenticated:
             return BookPurchaseSerializerLimited
         return BookPurchaseSerializer
 
@@ -61,12 +61,6 @@ class BookPurchaseViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
-
-    def list(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return Response({"detail": "Authentication required to list book purchases."},
-                            status=status.HTTP_403_FORBIDDEN)
-        return super().list(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -138,15 +132,158 @@ class BookPurchaseViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def perform_create(self, serializer):
-        if self.request.user and self.request.user.is_authenticated:
-            serializer.save(user=self.request.user)
-        else:
-            raise permissions.PermissionDenied("User must be authenticated to create a book purchase.")
-
-    def perform_update(self, serializer):
-        serializer.save()
+    @action(detail=False, methods=['post'])
+    def create_and_pay(self, request):
+        # Extraire payment_method_id du FormData
+        payment_method_id = request.POST.get('payment_method_id')
+        obituary_id = request.POST.get('obituary_id')
         
+        if not payment_method_id:
+            return Response(
+                {"error": "Payment method ID is required."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Vérifier l'obituary
+        if obituary_id:
+            try:
+                obituary = Obituary.objects.get(id=obituary_id)
+                if obituary.user != request.user:
+                    return Response(
+                        {"error": "You don't have permission to use this obituary."}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            except Obituary.DoesNotExist:
+                return Response(
+                    {"error": "Invalid obituary ID."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        try:
+            # Préparer les données pour le serializer
+            data = request.POST.dict()
+            
+            # Gérer les fichiers séparément
+            if 'deceased_image' in request.FILES:
+                data['deceased_image'] = request.FILES['deceased_image']
+            if 'custom_cover' in request.FILES:
+                data['custom_cover'] = request.FILES['custom_cover']
+                
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            
+            payment_method = PaymentMethod.objects.get(
+                id=payment_method_id, 
+                user=request.user
+            )
+            
+            book = Book.objects.get(id=request.POST.get('book_id'))
+            
+            amount = book.price
+            tax = Decimal(amount) * Decimal('0.15')
+            discount = Decimal('0.00')
+            total = amount + tax - discount
+
+            intent = stripe.PaymentIntent.create(
+                amount=int(total * 100),
+                currency='usd',
+                customer=request.user.stripe_customer_id,
+                payment_method=payment_method.stripe_payment_method_id,
+                off_session=True,
+                confirm=True,
+            )
+            
+            payment_transaction = PaymentTransaction.objects.create(
+                user=request.user,
+                payment_method=payment_method,
+                amount=amount,
+                tax=tax,
+                discount=discount,
+                total=total,
+                status='completed',
+                stripe_payment_intent_id=intent.id
+            )
+
+            book_purchase = serializer.save(
+                user=request.user,
+                payment_transaction=payment_transaction,
+                payment_status=True,
+                obituary=obituary if obituary_id else None,
+                generate_pdf=False
+            )
+            
+            if book_purchase.is_complete:
+                try:
+                    book_purchase.generate_initial_pdf()
+                except Exception as pdf_error:
+                    print(f"Error generating PDF: {pdf_error}")
+                    # On continue même si la génération du PDF échoue
+            
+            send_payment_confirmation_email(request.user, book_purchase)
+
+            return Response({
+                "success": True,
+                "message": "Book purchase created and payment processed successfully.",
+                "book_purchase": self.get_serializer(book_purchase).data
+            }, status=status.HTTP_201_CREATED)
+
+        except PaymentMethod.DoesNotExist:
+            return Response(
+                {"error": "Invalid payment method."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Book.DoesNotExist:
+            return Response(
+                {"error": "Invalid book ID."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except stripe.error.CardError as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            # Ajouter plus de détails pour le debug
+            import traceback
+            print("Error details:", str(e))
+            print("Traceback:", traceback.format_exc())
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=['post'])
+    def create_with_subscription(self, request):
+        subscription_id = request.data.get('subscription_id')
+        
+        if not subscription_id:
+            return Response({"error": "Subscription ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            subscription = FuneralHomeSubscription.objects.get(id=subscription_id, user=request.user, is_active=True)
+            
+            if not subscription.can_create_book():
+                return Response({"error": "Subscription limit reached or expired"}, status=status.HTTP_400_BAD_REQUEST)
+                
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            book_purchase = serializer.save(
+                user=request.user,
+                subscription=subscription,
+                payment_status=True  # Automatiquement payé car via abonnement
+            )
+            
+            # Incrémenter le compteur de livres
+            subscription.increment_books_count()
+            
+            return Response(self.get_serializer(book_purchase).data, status=status.HTTP_201_CREATED)
+            
+        except FuneralHomeSubscription.DoesNotExist:
+            return Response({"error": "Invalid or expired subscription"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
     @action(detail=True, methods=['post'], permission_classes=[permissions.AllowAny], authentication_classes=[])
     def increment_visit(self, request, pk=None):
         try:
@@ -404,3 +541,68 @@ class EmailViewSet(viewsets.ViewSet):
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SubscriptionPlanViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet pour lister les plans d'abonnement disponibles.
+    """
+    queryset = SubscriptionPlan.objects.filter(is_active=True)
+    serializer_class = SubscriptionPlanSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        book_type = self.request.query_params.get('book_type', None)
+        if book_type:
+            queryset = queryset.filter(book_type=book_type)
+        return queryset
+
+
+class FuneralHomeSubscriptionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour gérer les abonnements des pompes funèbres.
+    """
+    queryset = FuneralHomeSubscription.objects.all()
+    serializer_class = FuneralHomeSubscriptionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        subscription = self.get_object()
+        
+        try:
+            # Annuler dans Stripe
+            if subscription.stripe_subscription_id:
+                stripe.Subscription.modify(subscription.stripe_subscription_id, cancel_at_period_end=True)
+            
+            # Mettre à jour localement
+            subscription.auto_renew = False
+            subscription.save()
+            
+            return Response({"message": "Subscription will be cancelled at the end of the current period"})
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def reactivate(self, request, pk=None):
+        subscription = self.get_object()
+        
+        try:
+            # Réactiver dans Stripe
+            if subscription.stripe_subscription_id:
+                stripe.Subscription.modify(subscription.stripe_subscription_id, cancel_at_period_end=False)
+            
+            # Mettre à jour localement
+            subscription.auto_renew = True
+            subscription.save()
+            
+            return Response({"message": "Subscription reactivated successfully"})
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -27,13 +27,11 @@ from rest_framework import permissions
 from rest_framework_simplejwt.views import (TokenRefreshView, TokenVerifyView)
 from drf_yasg.views import get_schema_view
 
-from dj_rest_auth.registration.views import (
-    SocialAccountListView, SocialAccountDisconnectView
-)
+from dj_rest_auth.registration.views import SocialAccountListView
 
 schema_view = get_schema_view(
     settings.api_info,
-    url=settings.API_URL, 
+    url=settings.BASE_URL + '/api/', 
     public=True,
     permission_classes=(permissions.AllowAny,),
 )
@@ -66,9 +64,11 @@ urlpatterns = [
     path('api/auth/social/google/', GoogleLoginView.as_view(), name='google_login'),
     path('api/auth/social/facebook/', FacebookLoginView.as_view(), name='fb_login'),
     
+    path("api/auth/social/google/callback/", GoogleLoginCallback.as_view(), name="google_login_callback",),
+    
     # Social account management
     path('api/socialaccounts/', SocialAccountListView.as_view(), name='social_account_list'),
-    path('api/socialaccounts/<int:pk>/disconnect/', SocialAccountDisconnectView.as_view(), name='social_account_disconnect'),
+    path('api/socialaccounts/<int:pk>/disconnect/', CustomSocialAccountDisconnectView.as_view(), name='social_account_disconnect'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

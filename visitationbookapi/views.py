@@ -1,3 +1,4 @@
+from visitationbook import settings
 from django.shortcuts import redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,9 +12,10 @@ from visitationbookapi.models import *
 from visitationbookapi.serializers import *
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
-from dj_rest_auth.registration.views import SocialLoginView
+from dj_rest_auth.registration.views import SocialLoginView, SocialAccountDisconnectView
+from dj_rest_auth.registration.serializers import SocialLoginSerializer
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
-
+from allauth.socialaccount.models import SocialAccount
 
 def redirect_to_swagger(request):
     return redirect('schema-swagger-ui')
@@ -99,9 +101,17 @@ class UserDetailView(APIView):
         return Response(serializer.data)
     
 
-class CustomSocialLoginView(SocialLoginView):
+class GoogleLoginView(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
+    callback_url = settings.GOOGLE_OAUTH_CALLBACK_URL
     client_class = OAuth2Client
-
+    serializer_class = SocialLoginSerializer
+    
+    def get_serializer(self, *args, **kwargs):
+        serializer_class = self.get_serializer_class()
+        kwargs['context'] = self.get_serializer_context()
+        return serializer_class(*args, **kwargs)
+    
     def get_response(self):
         response = super().get_response()
         user = self.user
@@ -118,13 +128,56 @@ class CustomSocialLoginView(SocialLoginView):
         return response
 
 
-class GoogleLoginView(CustomSocialLoginView):
-    adapter_class = GoogleOAuth2Adapter
-    callback_url = settings.GOOGLE_OAUTH_CALLBACK_URL
-
-
-class FacebookLoginView(CustomSocialLoginView):
+class FacebookLoginView(SocialLoginView):
     adapter_class = FacebookOAuth2Adapter
+    client_class = OAuth2Client
+    serializer_class = SocialLoginSerializer
+    
+    def get_serializer(self, *args, **kwargs):
+        serializer_class = self.get_serializer_class()
+        kwargs['context'] = self.get_serializer_context()
+        return serializer_class(*args, **kwargs)
+    
+    def get_response(self):
+        response = super().get_response()
+        user = self.user
+        refresh = RefreshToken.for_user(user)
+        response.data.update({
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'full_name': user.full_name,
+            }
+        })
+        return response
+   
+   
+class GoogleLoginCallback(APIView):
+    def get(self, request, *args, **kwargs):
+        """
+        If you are building a fullstack application (eq. with React app next to Django)
+        you can place this endpoint in your frontend application to receive
+        the JWT tokens there - and store them in the state
+        """
+
+        code = request.GET.get("code")
+
+        if code is None:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        
+        token_endpoint_url = urljoin(settings.BASE_URL, reverse("google_login"))
+        response = requests.post(url=token_endpoint_url, data={"code": code})
+
+        return Response(response.json(), status=status.HTTP_200_OK)
+     
+
+class CustomSocialAccountDisconnectView(SocialAccountDisconnectView):
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return SocialAccount.objects.none()
+        return super().get_queryset()
     
     
 def get_tokens_for_user(user):

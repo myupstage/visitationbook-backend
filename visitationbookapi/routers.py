@@ -15,3 +15,5 @@ router.register(r'payment-methods', PaymentMethodViewSet, basename='payment_meth
 router.register(r'payment-transactions', PaymentTransactionViewSet, basename='payment_transactions')
 router.register(r'obituaries', ObituaryViewSet, basename='obituaries')
 router.register(r'emails', EmailViewSet, basename='email')
+router.register(r'subscription-plans', SubscriptionPlanViewSet, basename='subscription_plans')
+router.register(r'subscriptions', FuneralHomeSubscriptionViewSet, basename='subscriptions')

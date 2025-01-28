@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Confirmation - Visitation Book</title>
+    <title>Subscription Confirmation - Visitation Book</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -60,15 +59,11 @@
             font-weight: bold;
             color: #333;
         }
-        .book-cover {
-            text-align: center;
-            margin: 20px 0;
-        }
-        .book-cover img {
-            max-width: 200px;
-            height: auto;
+        .highlight {
+            background-color: #e8f5e9;
+            padding: 15px;
             border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
         }
         .footer {
             margin-top: 30px;
@@ -82,41 +77,51 @@
     <div class="container">
         <div class="header">
             <img src="{{ logo_url }}" alt="Visitation Book Logo" class="logo">
-            <h1>Payment Confirmation</h1>
+            <h1>Subscription Confirmation</h1>
         </div>
         
         <div class="content">
             <p>Dear {{user.full_name}},</p>
-            <p>Thank you for your recent purchase. We're pleased to confirm that your payment has been successfully processed.</p>
+            <p>Thank you for subscribing to Visitation Book. Your subscription has been successfully activated.</p>
 
-            <div class="book-cover">
-                <img src="{{ book_cover_url }}" alt="Book Cover: {{book_title}}">
+            <div class="highlight">
+                <p>Your subscription plan: <strong>{{subscription_plan}}</strong></p>
+                <p>Type: <strong>{{plan_type}}</strong></p>
+                <p>Book Type: <strong>{{book_type}}</strong></p>
             </div>
             
             <div class="details">
                 <div class="details-row">
-                    <span class="details-label">Book Title:</span>
-                    <span>{{book_title}}</span>
+                    <span class="details-label">Subscription Start:</span>
+                    <span>{{start_date}}</span>
                 </div>
                 <div class="details-row">
-                    <span class="details-label">Amount Paid:</span>
+                    <span class="details-label">Subscription End:</span>
+                    <span>{{end_date}}</span>
+                </div>
+                <div class="details-row">
+                    <span class="details-label">Monthly Fee:</span>
                     <span>${{amount}}</span>
                 </div>
                 <div class="details-row">
-                    <span class="details-label">Payment Date:</span>
-                    <span>{{purchase_date}}</span>
+                    <span class="details-label">Max Books Allowed:</span>
+                    <span>{{max_books}}</span>
                 </div>
+                {% if transaction_id %}
                 <div class="details-row">
                     <span class="details-label">Transaction ID:</span>
                     <span>{{transaction_id}}</span>
                 </div>
+                {% endif %}
                 <div class="details-row">
                     <span class="details-label">Status:</span>
                     <span>{{payment_status}}</span>
                 </div>
             </div>
             
-            <p>We hope you enjoy your purchase. If you have any questions or concerns, please don't hesitate to contact our customer support team.</p>
+            <p>With this subscription, you can create up to {{max_books}} books during your subscription period. Your subscription will automatically renew at the end of the period unless cancelled.</p>
+            
+            <p>If you have any questions about your subscription or need assistance, please don't hesitate to contact our support team.</p>
             
             <p>Best regards,<br>The Visitation Book Team</p>
         </div>

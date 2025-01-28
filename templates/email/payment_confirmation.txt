@@ -1,6 +1,6 @@
 Payment Confirmation
 
-Dear {{ user.first_name }},
+Dear {{ user.full_name }},
 
 We have received your payment for the following book purchase:
 

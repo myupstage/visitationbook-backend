@@ -19,7 +19,6 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 BASE_URL = os.environ.get('BASE_URL', 'https://admin.visitationbook.com')
-API_URL = os.environ.get('API_URL', 'https://admin.visitationbook.com/api/')
 FRONT_URL = os.environ.get('FRONT_URL', 'https://visitationbook.com/')
 
 # Quick-start development settings - unsuitable for production
@@ -51,6 +50,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.facebook',
+    'dj_rest_auth',
     'dj_rest_auth.registration',
     
     # https://www.django-rest-framework.org/
@@ -128,9 +128,9 @@ SOCIALACCOUNT_PROVIDERS = {
             'key': ''
         },
         "SCOPE": ["profile", "email"],
-        "AUTH_PARAMS": {
-            "access_type": "online",
-        },
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        }
     },
     'facebook': {
         'APP': {
@@ -139,6 +139,30 @@ SOCIALACCOUNT_PROVIDERS = {
             'key': ''
         }
     }
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'allauth': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+        'dj_rest_auth': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+        'rest_framework_simplejwt': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
 }
 
 SOCIAL_AUTH_PIPELINE = (
@@ -191,6 +215,11 @@ ACCOUNT_USERNAME_REQUIRED = False
 REST_AUTH = {
     'USER_DETAILS_SERIALIZER': 'visitationbookapi.serializers.UserSerializer',
     'LOGIN_SERIALIZER': 'visitationbookapi.serializers.LoginSerializer',
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'auth',
+    'JWT_AUTH_REFRESH_COOKIE': 'refresh-token',
+    'SOCIAL_AUTH_TOKEN_STRATEGY': 'dj_rest_auth.jwt_auth.CookieTokenStrategy',
+    'JWT_AUTH_SECURE': True
 }
 
 if DEBUG:
@@ -251,11 +280,13 @@ else:
     }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=180),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=50),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': False,
+    
+    'AUTH_COOKIE_SECURE': True,
 
     'ALGORITHM': 'HS256',
 
@@ -438,7 +469,7 @@ EMAIL_PORT = os.environ.get('EMAIL_PORT')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS')
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = os.environ.get('FROM_EMAIL')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 
 stripe.api_key = os.environ.get('STRIPE_TEST_SECRET_KEY')
 

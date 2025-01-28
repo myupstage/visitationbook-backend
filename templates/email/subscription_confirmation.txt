@@ -1,0 +1,26 @@
+Dear {{user.full_name}},
+
+Thank you for subscribing to Visitation Book. Your subscription has been successfully activated.
+
+Subscription Details:
+- Plan: {{subscription_plan}}
+- Type: {{plan_type}}
+- Book Type: {{book_type}}
+- Start Date: {{start_date}}
+- End Date: {{end_date}}
+- Monthly Fee: ${{amount}}
+- Max Books Allowed: {{max_books}}
+{% if transaction_id %}
+- Transaction ID: {{transaction_id}}
+{% endif %}
+- Status: {{payment_status}}
+
+With this subscription, you can create up to {{max_books}} books during your subscription period. Your subscription will automatically renew at the end of the period unless cancelled.
+
+If you have any questions about your subscription or need assistance, please don't hesitate to contact our support team.
+
+Best regards,
+The Visitation Book Team
+
+This is an automated message. Please do not reply to this email.
+© 2024 Visitation Book. All rights reserved.

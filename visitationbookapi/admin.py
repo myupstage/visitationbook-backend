@@ -51,9 +51,24 @@ class PaymentTransactionAdmin(ImportExportModelAdmin):
 
 @admin.register(BookPurchase)
 class BookPurchaseAdmin(ImportExportModelAdmin):
-    list_display = ('id', 'deceased_name', 'user', 'book', 'purchase_date', 'payment_status')
-    search_fields = ('id', 'deceased_name', 'user__email', 'book__title', 'purchase_date', 'payment_status')
+    list_display = ('id', 'deceased_name', 'user', 'book', 'purchase_date', 'payment_status', 'subscription_info')
+    list_filter = ('payment_status', 'is_complete', 'subscription__plan__plan_type')
+    search_fields = ('id', 'deceased_name', 'user__email', 'book__title', 'purchase_date', 'payment_status', 'subscription__plan__name')
     readonly_fields = ('id', 'purchase_date')
+    
+    def subscription_info(self, obj):
+        if obj.subscription:
+            return f"{obj.subscription.plan.name} ({obj.subscription.plan.get_plan_type_display()})"
+        return "-"
+    subscription_info.short_description = "Subscription"
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'user', 
+            'book',
+            'subscription',
+            'subscription__plan'
+        )
 
 @admin.register(GuestInfo)
 class GuestInfoAdmin(ImportExportModelAdmin):
@@ -66,3 +81,36 @@ class ObituaryAdmin(ImportExportModelAdmin):
     list_display = ('id', 'user', 'deceased_name', 'book_cover', 'obituary_pdf', 'is_both', 'text_color')
     search_fields = ('id', 'deceased_name', 'user__email', 'book_cover', 'obituary_pdf', 'is_both', 'text_color')
     readonly_fields = ('id',)
+
+
+@admin.register(SubscriptionPlan)
+class SubscriptionPlanAdmin(ImportExportModelAdmin):
+    list_display = ('id', 'name', 'plan_type', 'book_type', 'price', 'max_books', 'duration_months', 'is_active')
+    list_filter = ('plan_type', 'book_type', 'is_active')
+    search_fields = ('name', 'description')
+    readonly_fields = ('id',)
+
+
+@admin.register(SubscriptionFeature)
+class SubscriptionFeatureAdmin(ImportExportModelAdmin):
+    list_display = ('id', 'plan', 'name', 'description')
+    list_filter = ('plan__plan_type', 'plan__book_type')
+    search_fields = ('name', 'description', 'plan__name')
+    readonly_fields = ('id',)
+
+
+@admin.register(FuneralHomeSubscription)
+class FuneralHomeSubscriptionAdmin(ImportExportModelAdmin):
+    list_display = ('id', 'user', 'plan', 'start_date', 'end_date', 'is_active', 'books_created', 'auto_renew')
+    list_filter = ('is_active', 'auto_renew', 'plan__plan_type', 'plan__book_type')
+    search_fields = ('user__email', 'user__full_name', 'stripe_subscription_id', 'plan__name')
+    readonly_fields = ('id', 'start_date', 'stripe_subscription_id', 'latest_invoice_id', 'books_created')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user', 'plan')
+
+    def has_delete_permission(self, request, obj=None):
+        # Empêcher la suppression si l'abonnement est actif
+        if obj and obj.is_active:
+            return False
+        return super().has_delete_permission(request, obj)

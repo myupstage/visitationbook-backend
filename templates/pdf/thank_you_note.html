@@ -1,0 +1,132 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: letter;
+            margin: 0.5in 0.5in 0.5in 0.5in;
+            @bottom-center {
+                content: element(footer);
+            }
+        }
+
+        @page :first {
+            background-image: url('{{ background_image }}');
+            background-size: cover;
+            background-position: center;
+            margin: 0.5in 0.5in 0.5in 0.5in;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .page {
+            page-break-after: always;
+        }
+
+        /* First page styles */
+        .cover {
+            text-align: center;
+            height: 100vh;
+            position: relative;
+        }
+
+        .deceased-info {
+            padding-top: 1in;
+            position: relative;
+            z-index: 1;
+        }
+
+        .deceased-name {
+            font-size: 24pt;
+            margin-bottom: 0.3in;
+            text-align: center;
+            color: black;
+        }
+
+        .deceased-image {
+            max-width: 6in;
+            max-height: 6in;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .dates {
+            font-size: 14pt;
+            text-align: center;
+            margin-top: 0.1in;
+            color: black;
+        }
+
+        /* Thank you note page styles */
+        .thank-you {
+            text-align: center;
+            padding-top: 1in;
+        }
+
+        .note {
+            font-size: 12pt;
+            margin: 0.2in 0.5in;
+            line-height: 1.5;
+            text-align: justify;
+        }
+
+        /* Footer styles */
+        #footer {
+            position: running(footer);
+            text-align: center;
+        }
+
+        .footer-logo {
+            width: 1in;
+            height: 1in;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .footer-text {
+            margin-top: 0.25in;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- First page with deceased info -->
+    <div class="page cover">
+        <div class="deceased-info">
+            <h1 class="deceased-name">{{ deceased_name }}</h1>
+            {% if deceased_image %}
+            <img class="deceased-image" src="{{ deceased_image }}" alt="{{ deceased_name }}">
+            {% endif %}
+            <div class="dates">
+                {% if date_of_birth %}
+                <p>Born: {{ date_of_birth }}</p>
+                {% endif %}
+                {% if date_of_death %}
+                <p>Passed: {{ date_of_death }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Thank you note page -->
+    <div class="page thank-you">
+        <div class="note">
+            {{ attending_note|safe }}
+        </div>
+    </div>
+
+    <!-- Footer page -->
+    <div class="page">
+        <div id="footer">
+            <img class="footer-logo" src="{{ logo }}" alt="Logo">
+            <p class="footer-text">www.visitationbook.com</p>
+        </div>
+    </div>
+</body>
+</html>
